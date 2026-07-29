@@ -261,4 +261,17 @@ program
     },
   );
 
+program
+  .command("probe")
+  .description("(experimental) Read the guard's uncertainty and propose the inputs to test next")
+  .argument("<spec>", "spec to analyze")
+  .requiredOption("-t, --traces <dir>", "the traces the spec was induced from")
+  .option("--json <file>", "write full report as JSON")
+  .action(async (specPath: string, opts: { traces: string; json?: string }) => {
+    const { probe, renderProbe } = await import("./probe/index.js");
+    const report = probe(loadSpec(specPath), loadTraces(opts.traces));
+    process.stdout.write(renderProbe(report));
+    if (opts.json) writeFileSync(opts.json, JSON.stringify(report, null, 2));
+  });
+
 program.parse();
