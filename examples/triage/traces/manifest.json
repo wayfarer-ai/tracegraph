@@ -126,5 +126,133 @@
     "customer_tier": "standard",
     "expected_escalate": true,
     "escalated": true
+  },
+  "triage-TCK-3112.jsonl": {
+    "ticket_id": "TCK-3112",
+    "priority": "urgent",
+    "opened_hours_ago": 1,
+    "customer_tier": "silver",
+    "expected_escalate": false,
+    "escalated": false
+  },
+  "triage-TCK-3119.jsonl": {
+    "ticket_id": "TCK-3119",
+    "priority": "urgent",
+    "opened_hours_ago": 3.5,
+    "customer_tier": "gold",
+    "expected_escalate": false,
+    "escalated": false
+  },
+  "triage-TCK-3126.jsonl": {
+    "ticket_id": "TCK-3126",
+    "priority": "urgent",
+    "opened_hours_ago": 4.5,
+    "customer_tier": "standard",
+    "expected_escalate": true,
+    "escalated": true
+  },
+  "triage-TCK-3133.jsonl": {
+    "ticket_id": "TCK-3133",
+    "priority": "urgent",
+    "opened_hours_ago": 8,
+    "customer_tier": "gold",
+    "expected_escalate": true,
+    "escalated": true
+  },
+  "triage-TCK-3140.jsonl": {
+    "ticket_id": "TCK-3140",
+    "priority": "high",
+    "opened_hours_ago": 5,
+    "customer_tier": "gold",
+    "expected_escalate": false,
+    "escalated": false
+  },
+  "triage-TCK-3147.jsonl": {
+    "ticket_id": "TCK-3147",
+    "priority": "high",
+    "opened_hours_ago": 7.5,
+    "customer_tier": "silver",
+    "expected_escalate": false,
+    "escalated": false
+  },
+  "triage-TCK-3154.jsonl": {
+    "ticket_id": "TCK-3154",
+    "priority": "high",
+    "opened_hours_ago": 8.5,
+    "customer_tier": "gold",
+    "expected_escalate": true,
+    "escalated": true
+  },
+  "triage-TCK-3161.jsonl": {
+    "ticket_id": "TCK-3161",
+    "priority": "high",
+    "opened_hours_ago": 16,
+    "customer_tier": "standard",
+    "expected_escalate": true,
+    "escalated": true
+  },
+  "triage-TCK-3168.jsonl": {
+    "ticket_id": "TCK-3168",
+    "priority": "normal",
+    "opened_hours_ago": 12,
+    "customer_tier": "gold",
+    "expected_escalate": false,
+    "escalated": false
+  },
+  "triage-TCK-3175.jsonl": {
+    "ticket_id": "TCK-3175",
+    "priority": "normal",
+    "opened_hours_ago": 23.5,
+    "customer_tier": "silver",
+    "expected_escalate": false,
+    "escalated": false
+  },
+  "triage-TCK-3182.jsonl": {
+    "ticket_id": "TCK-3182",
+    "priority": "normal",
+    "opened_hours_ago": 25,
+    "customer_tier": "standard",
+    "expected_escalate": true,
+    "escalated": true
+  },
+  "triage-TCK-3189.jsonl": {
+    "ticket_id": "TCK-3189",
+    "priority": "normal",
+    "opened_hours_ago": 48,
+    "customer_tier": "gold",
+    "expected_escalate": true,
+    "escalated": true
+  },
+  "triage-TCK-3196.jsonl": {
+    "ticket_id": "TCK-3196",
+    "priority": "low",
+    "opened_hours_ago": 40,
+    "customer_tier": "standard",
+    "expected_escalate": false,
+    "escalated": false
+  },
+  "triage-TCK-3203.jsonl": {
+    "ticket_id": "TCK-3203",
+    "priority": "low",
+    "opened_hours_ago": 71,
+    "customer_tier": "gold",
+    "expected_escalate": false,
+    "escalated": false
+  },
+  "triage-TCK-3210.jsonl": {
+    "ticket_id": "TCK-3210",
+    "priority": "low",
+    "opened_hours_ago": 73,
+    "customer_tier": "silver",
+    "expected_escalate": true,
+    "escalated": true
+  },
+  "triage-TCK-3217.jsonl": {
+    "ticket_id": "TCK-3217",
+    "priority": "low",
+    "opened_hours_ago": 150,
+    "customer_tier": "gold",
+    "expected_escalate": true,
+    "escalated": true
   }
 }

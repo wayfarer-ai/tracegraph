@@ -10,9 +10,14 @@ this server, one fresh server per trial).
 # induce the spec from the bundled real traces
 node ../../dist/cli.js synthesize traces -o triage.spec.yaml
 
-# the shallow guard is the field the agent branches on: sla.breached == true
-# the deep rule (per-priority thresholds) needs more induction depth —
-# see src/synth tests for the guardScope + maxDepth variant
+# the shallow guard is the field the agent branches on: sla.breached
+# the deep rule (per-priority thresholds) is a convergence story, measured
+# on this very corpus:
+#   4 samples/band, any depth  -> partial recovery (priority never splits:
+#                                 50/50 bands give a greedy tree zero gain)
+#   8 samples/band, depth 7    -> full recovery, 100% agreement:
+#   (hours > 72) OR (hours > 4 AND priority == "urgent") OR ...
+# data density buys rule depth — and `probe` tells you where to add it
 
 # run the server yourself and gate a live agent
 node server.mjs &

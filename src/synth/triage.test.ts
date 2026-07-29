@@ -5,7 +5,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadStreamJsonTrace } from "../trace/stream-json.js";
-import { synthesize } from "./index.js";
+import { didAction, synthesize } from "./index.js";
+import { evalGuard } from "./inducer.js";
+import { extractFeatures } from "./features.js";
 import { checkTraces } from "../check/index.js";
 import { guardToString, type CallStep, type GateStep } from "../spec/types.js";
 
@@ -26,7 +28,7 @@ describe("second domain: triage (per-priority SLA rule)", () => {
   const result = synthesize(traces, { name: "triage" });
 
   it("has real traces on both sides of every priority band", () => {
-    expect(traces.length).toBe(16);
+    expect(traces.length).toBe(32);
     const byBand = new Map<string, boolean[]>();
     for (const t of traces) {
       const k = t.meta["priority"] as string;
@@ -35,8 +37,8 @@ describe("second domain: triage (per-priority SLA rule)", () => {
       );
     }
     for (const [, labels] of byBand) {
-      expect(labels.filter(Boolean).length).toBe(2);
-      expect(labels.length).toBe(4);
+      expect(labels.filter(Boolean).length).toBe(4);
+      expect(labels.length).toBe(8);
     }
   });
 
@@ -68,16 +70,46 @@ describe("second domain: triage (per-priority SLA rule)", () => {
     expect(report.deviations).toBe(0);
   });
 
-  it("HONEST LIMIT: the deep interaction rule is underdetermined at 4 samples/band", () => {
-    // Greedy trees can't gain on priority== splits when every band is 50/50,
-    // so per-priority thresholds don't fully recover from 16 traces. This is
-    // documented behavior, not a regression: the shallow guard IS the spec.
-    const deep = synthesize(traces, {
-      name: "triage-deep",
+  it("CONVERGENCE: at 4/band the deep rule memorizes but does not generalize…", () => {
+    // Training fit is the wrong metric at small samples — depth 7 fits 16
+    // traces perfectly. The honest measure is held-out agreement on the
+    // denser round-2 inputs: the 4/band-trained guard misses boundary
+    // cases it never observed.
+    const round1 = traces.filter(
+      (t) => Number((t.meta["ticket_id"] as string).slice(4)) <= 3105,
+    );
+    const round2 = traces.filter(
+      (t) => Number((t.meta["ticket_id"] as string).slice(4)) > 3105,
+    );
+    expect(round1.length).toBe(16);
+    expect(round2.length).toBe(16);
+
+    const m = synthesize(round1, {
+      name: "triage-4perband",
       guardScope: ["get_ticket"],
-      maxDepth: 5,
+      maxDepth: 7,
     });
-    expect(deep.trainingAgreement).toBeGreaterThanOrEqual(0.8);
-    expect(deep.trainingAgreement).toBeLessThan(1);
+    expect(m.trainingAgreement).toBe(1); // memorized…
+    const gate = m.spec.steps.find((s): s is GateStep => s.kind === "gate")!;
+    const actionSet = new Set(["escalate_ticket"]);
+    const heldOut = round2.filter(
+      (t) =>
+        evalGuard(gate.guard, extractFeatures(t, { actionTools: actionSet })) ===
+        didAction(t, "escalate_ticket"),
+    ).length;
+    expect(heldOut).toBeLessThanOrEqual(14); // …but does not generalize
+  });
+
+  it("…and fully recovers at 8/band: data density buys rule depth", () => {
+    const deep = synthesize(traces, {
+      name: "triage-deep-8perband",
+      guardScope: ["get_ticket"],
+      maxDepth: 7,
+    });
+    expect(deep.trainingAgreement).toBe(1);
+    const gate = deep.spec.steps.find((s): s is GateStep => s.kind === "gate")!;
+    const text = guardToString(gate.guard);
+    expect(text).toContain('ticket.priority == "urgent"');
+    expect(text).toContain("ticket.opened_hours_ago > 72");
   });
 });
