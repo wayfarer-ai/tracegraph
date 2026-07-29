@@ -4,3 +4,4 @@ dist/
 *.jsonl.log
 examples/refund/gate-demo.jsonl
 tracegraph-gate.jsonl
+docs-private/

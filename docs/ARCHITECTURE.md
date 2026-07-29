@@ -53,7 +53,7 @@ flowchart TB
 v1 stores nothing itself: traces stay where agents wrote them; the spec and
 invariants live in git (PR-reviewable, versioned with the agent); check
 reports are CI artifacts; the gate writes an append-only JSONL decision log.
-The platform phase (see ROADMAP §4) maps each file to a database successor
+A future platform phase maps each file to a database successor
 (spec.yaml → spec_version, gate log → gate_decision audit) and adds
 env_binding + calibration_set.
 
@@ -99,5 +99,4 @@ Live execution of the spec — probe farms, spec-as-scaffold agents, durable
 human-in-the-loop flows — needs retries, resumability, and event history.
 That is the btree/Temporal layer (`@q1k-oss/behaviour-tree-workflows`,
 where the spec loads via its Registry — proven at 204/204 decision
-agreement during the spike). Deliberately outside v1's dependency tree; see
-DECISIONS #6 and ROADMAP phase 4.
+agreement during the spike). Deliberately outside v1's dependency tree.

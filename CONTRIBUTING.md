@@ -35,7 +35,7 @@ elsewhere and in CI. Don't worry about it; the unit fixtures under
 ## Where things live
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the module map, data
-model, and sequences. Decisions with rationale: [docs/DECISIONS.md](docs/DECISIONS.md).
+model, and sequences.
 
 ## Most-wanted
 

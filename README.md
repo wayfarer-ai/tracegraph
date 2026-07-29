@@ -103,7 +103,7 @@ v0.1 — launch cut. Built on a validated method: on our benchmark corpus,
 induced guards agreed with held-out agent behavior at 95%+ and recovered a
 hidden backend policy from behavior alone, including a real
 behavioral quirk nobody had designed (the agent refuses $0 refunds).
-Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) — next up: what-if replay,
-active probing, OTel ingestion + Python SDK, self-hostable production gate.
+Next up: what-if replay, active probing, OTel ingestion + Python SDK,
+self-hostable production gate — follow the pinned issues for sequencing.
 
 Apache-2.0.
