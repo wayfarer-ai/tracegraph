@@ -1,5 +1,6 @@
 export { loadAtifTrace } from "./trace/atif.js";
 export { loadStreamJsonTrace } from "./trace/stream-json.js";
+export { loadOtlpTraces, looksLikeOtlp } from "./trace/otlp.js";
 export { canonicalTool, type Trace, type ToolEvent } from "./trace/types.js";
 export {
   extractFeatures,

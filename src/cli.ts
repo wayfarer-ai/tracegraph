@@ -6,6 +6,7 @@ import { readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { loadAtifTrace } from "./trace/atif.js";
 import { loadStreamJsonTrace } from "./trace/stream-json.js";
+import { loadOtlpTraces, looksLikeOtlp } from "./trace/otlp.js";
 import type { Trace } from "./trace/types.js";
 import { synthesize } from "./synth/index.js";
 import { clusterByVocabulary, describeClusters } from "./synth/cluster.js";
@@ -30,7 +31,10 @@ function loadTraces(dir: string): Trace[] {
     if (!statSync(p).isFile()) continue;
     try {
       if (f.endsWith(".jsonl")) traces.push(loadStreamJsonTrace(p));
-      else if (f.endsWith(".json") && f !== "manifest.json") traces.push(loadAtifTrace(p));
+      else if (f.endsWith(".json") && f !== "manifest.json") {
+        if (looksLikeOtlp(p)) traces.push(...loadOtlpTraces(p));
+        else traces.push(loadAtifTrace(p));
+      }
     } catch (e) {
       process.stderr.write(`warning: skipping ${f}: ${(e as Error).message}\n`);
     }
