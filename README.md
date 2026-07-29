@@ -2,6 +2,8 @@
 
 **The graph your agent actually follows.**
 
+![tracegraph synthesize](docs/gifs/synthesize.gif)
+
 You wrote a prompt. Maybe you even wrote an orchestration graph. But what
 your agent *actually does* — which tools it calls, in what order, gated on
 what conditions — exists only as a pile of traces nobody reads. tracegraph
@@ -53,6 +55,8 @@ $ node examples/refund/bad-agent.mjs         # reenacts the real failure
 ```
 
 No LLM or API key needed for any of the above.
+
+![gate blocking the reenacted failure](docs/gifs/gate-demo.gif)
 
 ## Quickstart (90 seconds)
 
