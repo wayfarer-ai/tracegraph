@@ -208,4 +208,57 @@ program
     },
   );
 
+program
+  .command("whatif")
+  .description("(experimental) Mutate a spec and replay decisions over recorded traces")
+  .argument("<spec>", "baseline spec")
+  .requiredOption("-t, --traces <dir>", "traces to replay decisions over")
+  .option("--set-threshold <feature=value>", "move a numeric guard threshold")
+  .option("--force-gate", "remove the gate guard entirely")
+  .option("--set-feature <feature=value>", "inject a mutated observation everywhere")
+  .action(
+    async (
+      specPath: string,
+      opts: {
+        traces: string;
+        setThreshold?: string;
+        forceGate?: boolean;
+        setFeature?: string;
+      },
+    ) => {
+      const { whatIf, renderWhatIf } = await import("./whatif/index.js");
+      const spec = loadSpec(specPath);
+      const traces = loadTraces(opts.traces);
+
+      const parseKV = (s: string): { feature: string; value: string | number | boolean } => {
+        const i = s.indexOf("=");
+        if (i < 0) throw new Error(`expected feature=value, got "${s}"`);
+        const feature = s.slice(0, i);
+        const raw = s.slice(i + 1);
+        const value =
+          raw === "true" ? true : raw === "false" ? false :
+          Number.isNaN(Number(raw)) ? raw : Number(raw);
+        return { feature, value };
+      };
+
+      const mutations = [];
+      if (opts.setThreshold) {
+        const { feature, value } = parseKV(opts.setThreshold);
+        mutations.push({ kind: "set-threshold" as const, feature, value: value as number });
+      }
+      if (opts.forceGate) mutations.push({ kind: "force-gate" as const });
+      if (opts.setFeature) {
+        const { feature, value } = parseKV(opts.setFeature);
+        mutations.push({ kind: "set-feature" as const, feature, value });
+      }
+      if (mutations.length === 0) {
+        process.stderr.write("whatif: pass at least one mutation flag\n");
+        process.exit(1);
+      }
+      for (const m of mutations) {
+        process.stdout.write(renderWhatIf(whatIf(spec, traces, m)) + "\n");
+      }
+    },
+  );
+
 program.parse();
