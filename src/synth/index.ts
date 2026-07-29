@@ -64,10 +64,22 @@ export function synthesize(traces: Trace[], opts: SynthesizeOptions = {}): Synth
   }
 
   const actionSet = new Set([actionTool]);
-  const rows: LabeledRow[] = traces.map((t) => ({
-    features: extractFeatures(t, { actionTools: actionSet, tools: opts.guardScope }),
-    label: didAction(t, actionTool),
-  }));
+  // Guards describe the state the agent ACTED ON, so positive traces
+  // contribute features as of the first successful action — the same
+  // timing `check` evaluates at. (Full-trace features would let a bad
+  // trace's post-action calls launder its missing pre-action state.)
+  const rows: LabeledRow[] = traces.map((t) => {
+    const label = didAction(t, actionTool);
+    let source = t;
+    if (label) {
+      const idx = t.events.findIndex((e) => e.tool === actionTool && !e.isError);
+      source = { ...t, events: t.events.slice(0, idx) };
+    }
+    return {
+      features: extractFeatures(source, { actionTools: actionSet, tools: opts.guardScope }),
+      label,
+    };
+  });
 
   const tree = induceGuardTree(rows, opts.maxDepth ?? 3);
   const guard = toGuardExpr(tree);

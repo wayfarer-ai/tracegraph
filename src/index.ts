@@ -35,3 +35,14 @@ export {
   type InvariantRule,
 } from "./spec/types.js";
 export { specToYaml, writeSpec, loadSpec, SpecParseError } from "./spec/io.js";
+export {
+  checkTrace,
+  checkTraces,
+  type CheckReport,
+  type TraceCheckResult,
+  type Finding,
+  type FindingLevel,
+} from "./check/index.js";
+export { loadRules, RulesParseError } from "./check/rules.js";
+export { clusterByVocabulary, describeClusters } from "./synth/cluster.js";
+export { FeatureAccumulator } from "./synth/features.js";

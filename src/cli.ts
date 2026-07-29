@@ -2,14 +2,16 @@
 /** tracegraph CLI — the graph your agent actually follows. */
 
 import { Command } from "commander";
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { loadAtifTrace } from "./trace/atif.js";
 import { loadStreamJsonTrace } from "./trace/stream-json.js";
 import type { Trace } from "./trace/types.js";
 import { synthesize } from "./synth/index.js";
 import { clusterByVocabulary, describeClusters } from "./synth/cluster.js";
-import { writeSpec } from "./spec/io.js";
+import { loadSpec, writeSpec } from "./spec/io.js";
+import { checkTraces } from "./check/index.js";
+import { loadRules } from "./check/rules.js";
 import { guardToString, type SpecStep } from "./spec/types.js";
 
 const program = new Command();
@@ -89,11 +91,38 @@ program
 
 program
   .command("check")
-  .description("Check traces against a spec (deviations + invariants) — coming in this release cycle")
-  .action(() => {
-    process.stderr.write("tracegraph check: not yet implemented (roadmap: week 1, day 3)\n");
-    process.exit(2);
-  });
+  .description("Check traces against a spec: gate conformance + invariant rules")
+  .argument("<traces-dir>", "directory containing trace files")
+  .requiredOption("-s, --spec <file>", "spec to check against")
+  .option("-r, --rules <file>", "invariants rules file")
+  .option("--json <file>", "write full report as JSON")
+  .action(
+    (dir: string, opts: { spec: string; rules?: string; json?: string }) => {
+      const traces = loadTraces(dir);
+      if (traces.length === 0) {
+        process.stderr.write("no traces found\n");
+        process.exit(1);
+      }
+      const spec = loadSpec(opts.spec);
+      const rules = opts.rules ? loadRules(opts.rules) : [];
+      const report = checkTraces(traces, spec, rules);
+
+      for (const r of report.results) {
+        for (const f of r.findings) {
+          const mark = f.level === "deviation" ? "✗" : "·";
+          process.stdout.write(`${mark} ${r.traceId}: ${f.message}\n`);
+        }
+      }
+      process.stdout.write(
+        `\n${report.conformant}/${report.traces} traces conformant · ` +
+          `${report.deviations} deviation(s) · spec: ${report.spec}\n`,
+      );
+      if (opts.json) {
+        writeFileSync(opts.json, JSON.stringify(report, null, 2));
+      }
+      process.exit(report.deviations > 0 ? 1 : 0);
+    },
+  );
 
 program
   .command("diff")

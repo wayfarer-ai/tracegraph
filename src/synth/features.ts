@@ -8,7 +8,7 @@
  *   references, not conditions
  */
 
-import type { Trace } from "../trace/types.js";
+import type { Trace, ToolEvent } from "../trace/types.js";
 
 export type FeatureValue = number | boolean | string;
 export type Features = Map<string, FeatureValue>;
@@ -29,31 +29,47 @@ export interface FeatureOptions {
   actionTools?: Set<string>;
 }
 
-export function extractFeatures(trace: Trace, opts: FeatureOptions = {}): Features {
-  const feats: Features = new Map();
-  for (const e of trace.events) {
-    if (e.result === undefined || typeof e.result !== "object" || e.result === null) continue;
-    if (opts.actionTools?.has(e.tool)) continue;
-    if (opts.tools && !opts.tools.includes(e.tool)) continue;
+/** Incremental feature accumulation — shared by whole-trace extraction
+ * (synthesis) and step-by-step evaluation (check now, gate later, where
+ * guards must be judged on exactly the state visible at action time). */
+export class FeatureAccumulator {
+  readonly features: Features = new Map();
+
+  constructor(
+    private readonly runDate: Date,
+    private readonly opts: FeatureOptions = {},
+  ) {}
+
+  add(e: ToolEvent): void {
+    if (e.result === undefined || typeof e.result !== "object" || e.result === null) return;
+    if (this.opts.actionTools?.has(e.tool)) return;
+    if (this.opts.tools && !this.opts.tools.includes(e.tool)) return;
+    const record = e.result as Record<string, unknown>;
+    if (e.isError || "error" in record) return; // error payloads are not state
     const prefix = bindingName(e.tool);
-    for (const [k, v] of Object.entries(e.result as Record<string, unknown>)) {
+    for (const [k, v] of Object.entries(record)) {
       if (k === "id" || k.endsWith("_id")) continue;
       const key = `${prefix}.${k}`;
-      if (feats.has(key)) continue;
+      if (this.features.has(key)) continue;
       if (typeof v === "number" || typeof v === "boolean") {
-        feats.set(key, v);
+        this.features.set(key, v);
       } else if (typeof v === "string") {
         if (DATE_RE.test(v)) {
           const d = new Date(`${v}T00:00:00Z`);
-          feats.set(
+          this.features.set(
             `${key}.age_days`,
-            Math.floor((trace.runDate.getTime() - d.getTime()) / MS_PER_DAY),
+            Math.floor((this.runDate.getTime() - d.getTime()) / MS_PER_DAY),
           );
         } else if (v.length <= 32) {
-          feats.set(key, v);
+          this.features.set(key, v);
         }
       }
     }
   }
-  return feats;
+}
+
+export function extractFeatures(trace: Trace, opts: FeatureOptions = {}): Features {
+  const acc = new FeatureAccumulator(trace.runDate, opts);
+  for (const e of trace.events) acc.add(e);
+  return acc.features;
 }
