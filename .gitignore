@@ -1,3 +1,6 @@
 node_modules/
 dist/
 .DS_Store
+*.jsonl.log
+examples/refund/gate-demo.jsonl
+tracegraph-gate.jsonl

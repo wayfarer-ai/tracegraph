@@ -1,0 +1,66 @@
+tracegraph: 1
+name: refund
+inputs:
+  - query
+  - max_results
+  - order_id
+  - file_path
+  - content
+steps:
+  - kind: call
+    id: call-ToolSearch
+    tool: ToolSearch
+    args:
+      query: ${input.query}
+      max_results: ${input.max_results}
+    as: ToolSearch
+    loadBearing: false
+  - kind: call
+    id: call-order
+    tool: get_order
+    args:
+      order_id: ${input.order_id}
+    as: order
+    loadBearing: true
+  - kind: call
+    id: call-refund_policy
+    tool: check_refund_policy
+    args:
+      order_id: ${order.id}
+    as: refund_policy
+    loadBearing: true
+  - kind: call
+    id: call-customer
+    tool: get_customer
+    args:
+      customer_id: ${order.customer_id}
+    as: customer
+    loadBearing: false
+  - kind: call
+    id: call-Write
+    tool: Write
+    args:
+      file_path: ${input.file_path}
+      content: ${input.content}
+    as: Write
+    loadBearing: false
+  - kind: gate
+    id: gate-on-guard
+    guard:
+      - - feature: refund_policy.max_amount
+          op: ">"
+          value: 0.25
+    then:
+      - kind: call
+        id: call-issue_refund
+        tool: issue_refund
+        args:
+          order_id: ${order.id}
+          amount: ${refund_policy.max_amount}
+        as: issue_refund
+        loadBearing: true
+induction:
+  traces: 16
+  at: 2026-07-29T04:09:11.729Z
+  agreement: 1
+  tool: tracegraph@0.0.1
