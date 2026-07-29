@@ -3,96 +3,112 @@
     "age_days": 31,
     "status": "delivered",
     "total": 80.0,
-    "expected_eligible": true
+    "expected_eligible": true,
+    "order_id": "ORD-2381"
   },
   "refund-ORD-3406__1.json": {
     "age_days": 29,
     "status": "delivered",
     "total": 80.0,
-    "expected_eligible": false
+    "expected_eligible": false,
+    "order_id": "ORD-3406"
   },
   "refund-ORD-8273__1.json": {
     "age_days": 60,
     "status": "delivered",
     "total": 80.0,
-    "expected_eligible": true
+    "expected_eligible": true,
+    "order_id": "ORD-8273"
   },
   "refund-ORD-8580__1.json": {
     "age_days": 30,
     "status": "delivered",
     "total": 80.0,
-    "expected_eligible": false
+    "expected_eligible": false,
+    "order_id": "ORD-8580"
   },
   "refund-ORD-1051__1.json": {
     "age_days": 40,
     "status": "in_transit",
     "total": 80.0,
-    "expected_eligible": false
+    "expected_eligible": false,
+    "order_id": "ORD-1051"
   },
   "refund-ORD-4199__1.json": {
     "age_days": 29,
     "status": "delivered",
     "total": 10.0,
-    "expected_eligible": false
+    "expected_eligible": false,
+    "order_id": "ORD-4199"
   },
   "refund-ORD-4238__1.json": {
     "age_days": 40,
     "status": "delivered",
     "total": 80.0,
-    "expected_eligible": true
+    "expected_eligible": true,
+    "order_id": "ORD-4238"
   },
   "refund-ORD-4776__1.json": {
     "age_days": 31,
     "status": "delivered",
     "total": 5000.0,
-    "expected_eligible": true
+    "expected_eligible": true,
+    "order_id": "ORD-4776"
   },
   "refund-ORD-5609__1.json": {
     "age_days": 32,
     "status": "delivered",
     "total": 80.0,
-    "expected_eligible": true
+    "expected_eligible": true,
+    "order_id": "ORD-5609"
   },
   "refund-ORD-6026__1.json": {
     "age_days": 40,
     "status": "delivered",
     "total": 0.0,
-    "expected_eligible": true
+    "expected_eligible": true,
+    "order_id": "ORD-6026"
   },
   "refund-ORD-6449__1.json": {
     "age_days": 120,
     "status": "returned",
     "total": 80.0,
-    "expected_eligible": false
+    "expected_eligible": false,
+    "order_id": "ORD-6449"
   },
   "refund-ORD-6768__1.json": {
     "age_days": 10,
     "status": "cancelled",
     "total": 80.0,
-    "expected_eligible": false
+    "expected_eligible": false,
+    "order_id": "ORD-6768"
   },
   "refund-ORD-7598__1.json": {
     "age_days": 3,
     "status": "delivered",
     "total": 80.0,
-    "expected_eligible": false
+    "expected_eligible": false,
+    "order_id": "ORD-7598"
   },
   "refund-ORD-9421__1.json": {
     "age_days": 28,
     "status": "delivered",
     "total": 80.0,
-    "expected_eligible": false
+    "expected_eligible": false,
+    "order_id": "ORD-9421"
   },
   "refund-ORD-7677__1.json": {
     "age_days": 40,
     "status": "delivered",
     "total": 0.5,
-    "expected_eligible": true
+    "expected_eligible": true,
+    "order_id": "ORD-7677"
   },
   "refund-ORD-9680__1.json": {
     "age_days": 40,
     "status": "delivered",
     "total": 1.0,
-    "expected_eligible": true
+    "expected_eligible": true,
+    "order_id": "ORD-9680"
   }
 }

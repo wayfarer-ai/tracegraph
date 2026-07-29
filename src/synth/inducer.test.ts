@@ -13,9 +13,9 @@ function loadFixtures() {
   const manifest = JSON.parse(
     readFileSync(join(FIXTURES, "manifest.json"), "utf8"),
   ) as Record<string, { expected_eligible: boolean }>;
-  return readdirSync(FIXTURES)
-    .filter((f) => f.endsWith(".json") && f !== "manifest.json")
-    .map((f) => loadAtifTrace(join(FIXTURES, f), manifest[f] ?? {}));
+  return Object.keys(manifest).map((f) =>
+    loadAtifTrace(join(FIXTURES, f), manifest[f] ?? {}),
+  );
 }
 
 function issuedRefund(events: ReturnType<typeof loadAtifTrace>["events"]): boolean {
