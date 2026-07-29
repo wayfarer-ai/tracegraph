@@ -39,6 +39,7 @@
     "llm"
   ],
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "commander": "^12.1.0",
     "yaml": "^2.6.0"
   },
