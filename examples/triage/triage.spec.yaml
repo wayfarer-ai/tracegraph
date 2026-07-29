@@ -1,0 +1,50 @@
+tracegraph: 1
+name: triage
+inputs:
+  - query
+  - max_results
+  - ticket_id
+  - reason
+steps:
+  - kind: call
+    id: call-ToolSearch
+    tool: ToolSearch
+    args:
+      query: ${input.query}
+      max_results: ${input.max_results}
+    as: ToolSearch
+    loadBearing: false
+  - kind: call
+    id: call-ticket
+    tool: get_ticket
+    args:
+      ticket_id: ${input.ticket_id}
+    as: ticket
+    loadBearing: true
+  - kind: call
+    id: call-sla
+    tool: check_sla
+    args:
+      ticket_id: ${ticket.id}
+    as: sla
+    loadBearing: true
+  - kind: gate
+    id: gate-on-guard
+    guard:
+      - - feature: sla.breached
+          op: "!="
+          value: false
+    then:
+      - kind: call
+        id: call-escalate_ticket
+        tool: escalate_ticket
+        args:
+          ticket_id: ${ticket.id}
+          reason: ${input.reason}
+        as: escalate_ticket
+        loadBearing: true
+induction:
+  traces: 16
+  at: 2026-07-29T08:56:33.131Z
+  agreement: 1
+  tool: tracegraph@0.0.1

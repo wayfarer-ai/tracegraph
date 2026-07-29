@@ -78,9 +78,12 @@ tracegraph gate --spec refund.spec.yaml --mode shadow \
 ```
 
 Your own traces: point `synthesize` at Claude Code stream-json files
-(`claude -p --output-format stream-json`) or ATIF trajectories (Harbor
-agents emit these natively). OpenTelemetry GenAI ingestion is the next
-loader — follow the pinned issue.
+(`claude -p --output-format stream-json`), ATIF trajectories (Harbor agents
+emit these natively), or OpenTelemetry GenAI span exports.
+
+A second domain with a different rule shape (per-priority SLA thresholds —
+categorical × numeric) lives in [examples/triage](examples/triage), with
+real traces and an honest note on where induction hits its limits.
 
 ## How it works
 

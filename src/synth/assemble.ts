@@ -79,8 +79,9 @@ function uniqueBinding(tool: string, used: Map<string, number>): string {
   return n === 1 ? base : `${base}${n}`;
 }
 
-/** Which result fields of `binding` are referenced by later lifted args. */
-function markLoadBearing(steps: CallStep[]): void {
+/** A call is load-bearing when its result feeds later lifted args OR the
+ * gate guard's features — the guard input is the decision, after all. */
+function markLoadBearing(steps: CallStep[], guard: GuardExpr): void {
   const referenced = new Set<string>();
   for (const s of steps) {
     for (const v of Object.values(s.args)) {
@@ -88,6 +89,12 @@ function markLoadBearing(steps: CallStep[]): void {
         const m = v.match(/^\$\{([^.}]+)\./);
         if (m?.[1]) referenced.add(m[1]);
       }
+    }
+  }
+  for (const and of guard) {
+    for (const clause of and) {
+      const binding = clause.feature.split(".")[0];
+      if (binding) referenced.add(binding);
     }
   }
   for (const s of steps) {
@@ -176,7 +183,7 @@ export function assembleSpec(traces: Trace[], opts: AssembleOptions): TraceGraph
       ]
     : [];
 
-  markLoadBearing([...prefixSteps, ...actionSteps]);
+  markLoadBearing([...prefixSteps, ...actionSteps], opts.guard);
 
   const gate: GateStep = {
     kind: "gate",
