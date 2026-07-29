@@ -44,5 +44,8 @@ export {
   type FindingLevel,
 } from "./check/index.js";
 export { loadRules, RulesParseError } from "./check/rules.js";
+export { diffSpecs, renderDiff, decisionAgreement, type SpecDiff } from "./diff/index.js";
+export { SpecGate, type GateDecision, type GateMode } from "./gate/core.js";
+export { GateProxy, type GateProxyOptions } from "./gate/proxy.js";
 export { clusterByVocabulary, describeClusters } from "./synth/cluster.js";
 export { FeatureAccumulator } from "./synth/features.js";

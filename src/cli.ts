@@ -144,10 +144,68 @@ program
 
 program
   .command("gate")
-  .description("Run the local MCP gate proxy — coming in this release cycle")
-  .action(() => {
-    process.stderr.write("tracegraph gate: not yet implemented (roadmap: week 2)\n");
-    process.exit(2);
-  });
+  .description("Run the MCP gate proxy: judge every tool call against a spec before forwarding")
+  .requiredOption("-s, --spec <file>", "spec to enforce")
+  .option("-r, --rules <file>", "invariants rules file")
+  .option("-m, --mode <mode>", "shadow (log only) or block", "shadow")
+  .option("--target-url <url>", "target MCP server URL (streamable-http)")
+  .option("--target-cmd <cmd...>", "target MCP server command (stdio)")
+  .option("--log <file>", "decision log (JSONL)", "tracegraph-gate.jsonl")
+  .action(
+    async (opts: {
+      spec: string;
+      rules?: string;
+      mode: string;
+      targetUrl?: string;
+      targetCmd?: string[];
+      log: string;
+    }) => {
+      if (!opts.targetUrl && !opts.targetCmd?.length) {
+        process.stderr.write("gate: provide --target-url or --target-cmd\n");
+        process.exit(1);
+      }
+      if (opts.mode !== "shadow" && opts.mode !== "block") {
+        process.stderr.write(`gate: unknown mode "${opts.mode}" (shadow|block)\n`);
+        process.exit(1);
+      }
+      const { GateProxy } = await import("./gate/proxy.js");
+      const { StdioServerTransport } = await import(
+        "@modelcontextprotocol/sdk/server/stdio.js"
+      );
+
+      let targetTransport;
+      if (opts.targetUrl) {
+        const { StreamableHTTPClientTransport } = await import(
+          "@modelcontextprotocol/sdk/client/streamableHttp.js"
+        );
+        targetTransport = new StreamableHTTPClientTransport(new URL(opts.targetUrl));
+      } else {
+        const { StdioClientTransport } = await import(
+          "@modelcontextprotocol/sdk/client/stdio.js"
+        );
+        const [command, ...args] = opts.targetCmd!;
+        targetTransport = new StdioClientTransport({ command: command!, args });
+      }
+
+      const proxy = new GateProxy({
+        spec: loadSpec(opts.spec),
+        rules: opts.rules ? loadRules(opts.rules) : [],
+        mode: opts.mode,
+        logPath: opts.log,
+        onDecision: (d) => {
+          if (d.action !== "allow") {
+            process.stderr.write(
+              `[gate] ${d.action} ${d.tool}: ${d.violations.join("; ")}\n`,
+            );
+          }
+        },
+      });
+      // Agent side is stdio: point the agent's MCP config at this command.
+      await proxy.connect(new StdioServerTransport(), targetTransport);
+      process.stderr.write(
+        `[gate] ${opts.mode} mode · spec ${opts.spec} · log ${opts.log}\n`,
+      );
+    },
+  );
 
 program.parse();

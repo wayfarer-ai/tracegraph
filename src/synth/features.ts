@@ -50,7 +50,10 @@ export class FeatureAccumulator {
     for (const [k, v] of Object.entries(record)) {
       if (k === "id" || k.endsWith("_id")) continue;
       const key = `${prefix}.${k}`;
-      if (this.features.has(key)) continue;
+      // Latest-wins: state is the most recent observation. (Induction is
+      // unaffected — it slices events at action time before extraction —
+      // and the live gate NEEDS this: an agent that pivots to a different
+      // order must be judged on that order's fresh results, not stale ones.)
       if (typeof v === "number" || typeof v === "boolean") {
         this.features.set(key, v);
       } else if (typeof v === "string") {

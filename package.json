@@ -41,7 +41,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "commander": "^12.1.0",
-    "yaml": "^2.6.0"
+    "yaml": "^2.6.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
