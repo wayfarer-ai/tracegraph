@@ -1,0 +1,31 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+      - name: packaged CLI smoke
+        run: |
+          npm pack
+          mkdir -p /tmp/install-test && cd /tmp/install-test
+          npm init -y
+          npm install $GITHUB_WORKSPACE/tracegraph-*.tgz
+          npx tracegraph --version
+          npx tracegraph synthesize $GITHUB_WORKSPACE/examples/refund/traces -o spec.yaml
+          npx tracegraph check $GITHUB_WORKSPACE/examples/refund/traces --spec spec.yaml
