@@ -19,6 +19,7 @@
     "dev": "tsup src/index.ts src/cli.ts --format esm --watch",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:corpus": "npm run build && node scripts/corpus-integration.mjs",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
