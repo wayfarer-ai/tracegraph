@@ -12,6 +12,7 @@ import { clusterByVocabulary, describeClusters } from "./synth/cluster.js";
 import { loadSpec, writeSpec } from "./spec/io.js";
 import { checkTraces } from "./check/index.js";
 import { loadRules } from "./check/rules.js";
+import { diffSpecs, renderDiff } from "./diff/index.js";
 import { guardToString, type SpecStep } from "./spec/types.js";
 
 const program = new Command();
@@ -126,10 +127,19 @@ program
 
 program
   .command("diff")
-  .description("Diff two specs — coming in this release cycle")
-  .action(() => {
-    process.stderr.write("tracegraph diff: not yet implemented (roadmap: week 1, day 4)\n");
-    process.exit(2);
+  .description("Diff two specs: structure, guard clauses, and decision agreement on sample traces")
+  .argument("<old-spec>", "baseline spec")
+  .argument("<new-spec>", "candidate spec")
+  .option("-t, --traces <dir>", "sample traces for decision-agreement analysis")
+  .option("--json <file>", "write full diff as JSON")
+  .action((oldPath: string, newPath: string, opts: { traces?: string; json?: string }) => {
+    const a = loadSpec(oldPath);
+    const b = loadSpec(newPath);
+    const samples = opts.traces ? loadTraces(opts.traces) : undefined;
+    const d = diffSpecs(a, b, samples);
+    process.stdout.write(renderDiff(d));
+    if (opts.json) writeFileSync(opts.json, JSON.stringify(d, null, 2));
+    process.exit(d.identical ? 0 : 1);
   });
 
 program

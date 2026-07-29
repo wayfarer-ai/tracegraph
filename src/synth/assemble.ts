@@ -17,9 +17,11 @@ interface Bound {
 }
 
 function liftArgs(
+  tool: string,
   args: Record<string, unknown>,
   prior: Bound[],
   inputs: Map<string, unknown>,
+  varying: Set<string>,
 ): Record<string, unknown> {
   const lifted: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(args)) {
@@ -41,9 +43,33 @@ function liftArgs(
         }
       }
     }
+    // Auto-lift: an arg whose literal differs across traces is a task
+    // input, not part of the behavior (a spec with "ORD-2381" baked in
+    // would be donor-trace trivia).
+    if (!ref && varying.has(`${tool}.${k}`)) {
+      ref = `\${input.${k}}`;
+      inputs.set(k, v);
+    }
     lifted[k] = ref ?? v;
   }
   return lifted;
+}
+
+/** tool.arg keys whose literal values differ across traces. */
+function varyingArgs(traces: Trace[]): Set<string> {
+  const seen = new Map<string, Set<string>>();
+  for (const t of traces) {
+    const first = new Set<string>();
+    for (const e of t.events) {
+      for (const [k, v] of Object.entries(e.args)) {
+        const key = `${e.tool}.${k}`;
+        if (first.has(key)) continue;
+        first.add(key);
+        (seen.get(key) ?? seen.set(key, new Set()).get(key)!).add(JSON.stringify(v));
+      }
+    }
+  }
+  return new Set([...seen.entries()].filter(([, v]) => v.size > 1).map(([k]) => k));
 }
 
 function uniqueBinding(tool: string, used: Map<string, number>): string {
@@ -113,6 +139,7 @@ export function assembleSpec(traces: Trace[], opts: AssembleOptions): TraceGraph
   for (const [metaKey, inputName] of Object.entries(opts.inputKeys ?? {})) {
     if (donor.meta[metaKey] !== undefined) inputs.set(inputName, donor.meta[metaKey]);
   }
+  const varying = varyingArgs(traces);
 
   const used = new Map<string, number>();
   const prior: Bound[] = [];
@@ -128,7 +155,7 @@ export function assembleSpec(traces: Trace[], opts: AssembleOptions): TraceGraph
       kind: "call",
       id: `call-${binding}`,
       tool,
-      args: liftArgs(e.args, prior, inputs),
+      args: liftArgs(tool, e.args, prior, inputs, varying),
       as: binding,
     });
     if (typeof e.result === "object" && e.result !== null) {
@@ -143,7 +170,7 @@ export function assembleSpec(traces: Trace[], opts: AssembleOptions): TraceGraph
           kind: "call",
           id: `call-${uniqueBinding(opts.actionTool, used)}`,
           tool: opts.actionTool,
-          args: liftArgs(actionEvent.args, prior, inputs),
+          args: liftArgs(opts.actionTool, actionEvent.args, prior, inputs, varying),
           as: bindingName(opts.actionTool),
         },
       ]

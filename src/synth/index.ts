@@ -30,26 +30,43 @@ export interface SynthesisResult {
 }
 
 export function detectActionTool(traces: Trace[]): string | undefined {
-  const stats = new Map<string, { count: number; meanPos: number }>();
+  const stats = new Map<string, { count: number; meanPos: number; mcp: boolean }>();
   for (const t of traces) {
     const seen = new Set<string>();
     for (const [i, e] of t.events.entries()) {
       if (seen.has(e.tool)) continue;
       seen.add(e.tool);
-      const s = stats.get(e.tool) ?? { count: 0, meanPos: 0 };
+      const s = stats.get(e.tool) ?? { count: 0, meanPos: 0, mcp: false };
       s.count += 1;
       s.meanPos += t.events.length ? i / t.events.length : 0;
+      s.mcp ||= e.rawTool.startsWith("mcp__");
       stats.set(e.tool, s);
     }
   }
-  const candidates = [...stats.entries()]
-    .filter(([, s]) => s.count > 0 && s.count < traces.length)
-    .sort((a, b) => b[1].meanPos / b[1].count - a[1].meanPos / a[1].count);
-  return candidates[0]?.[0];
+  const varying = [...stats.entries()].filter(
+    ([, s]) => s.count > 0 && s.count < traces.length,
+  );
+  // Domain (MCP) tools outrank agent-harness tools (Read, Write, ...):
+  // a harness tool appearing sporadically is exploration noise, never the
+  // consequential action a guard should gate.
+  const pool = varying.some(([, s]) => s.mcp) ? varying.filter(([, s]) => s.mcp) : varying;
+  pool.sort((a, b) => b[1].meanPos / b[1].count - a[1].meanPos / a[1].count);
+  return pool[0]?.[0];
 }
 
+/** Did the action SUCCEED — transport errors and business-level rejections
+ * (`ok: false` / `success: false` in the result) both count as not-taken.
+ * Rejected attempts matter for check (the agent *tried*), but a guard must
+ * be induced from what actually happened. */
 export function didAction(trace: Trace, actionTool: string): boolean {
-  return trace.events.some((e) => e.tool === actionTool && !e.isError);
+  return trace.events.some((e) => {
+    if (e.tool !== actionTool || e.isError) return false;
+    if (typeof e.result === "object" && e.result !== null) {
+      const r = e.result as Record<string, unknown>;
+      if (r["ok"] === false || r["success"] === false || "error" in r) return false;
+    }
+    return true;
+  });
 }
 
 export function synthesize(traces: Trace[], opts: SynthesizeOptions = {}): SynthesisResult {
@@ -68,11 +85,19 @@ export function synthesize(traces: Trace[], opts: SynthesizeOptions = {}): Synth
   // contribute features as of the first successful action — the same
   // timing `check` evaluates at. (Full-trace features would let a bad
   // trace's post-action calls launder its missing pre-action state.)
+  const succeeded = (e: Trace["events"][number]): boolean => {
+    if (e.tool !== actionTool || e.isError) return false;
+    if (typeof e.result === "object" && e.result !== null) {
+      const r = e.result as Record<string, unknown>;
+      if (r["ok"] === false || r["success"] === false || "error" in r) return false;
+    }
+    return true;
+  };
   const rows: LabeledRow[] = traces.map((t) => {
     const label = didAction(t, actionTool);
     let source = t;
     if (label) {
-      const idx = t.events.findIndex((e) => e.tool === actionTool && !e.isError);
+      const idx = t.events.findIndex(succeeded);
       source = { ...t, events: t.events.slice(0, idx) };
     }
     return {
