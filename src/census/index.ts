@@ -15,7 +15,13 @@ export interface PopulationCensus {
   totalCalls: number;
   meanCallsPerTrace: number;
   mcpShare: number;
-  tools: { tool: string; calls: number; traces: number; errorRate: number }[];
+  tools: {
+    tool: string;
+    calls: number;
+    traces: number;
+    errorRate: number;
+    topErrors: { message: string; count: number }[];
+  }[];
   bigrams: { pair: string; count: number }[];
 }
 
@@ -26,7 +32,10 @@ export interface CensusReport {
 }
 
 function censusOne(traces: Trace[]): PopulationCensus {
-  const byTool = new Map<string, { calls: number; traces: Set<string>; errors: number }>();
+  const byTool = new Map<
+    string,
+    { calls: number; traces: Set<string>; errors: number; errorMsgs: Map<string, number> }
+  >();
   const bigrams = new Map<string, number>();
   let total = 0;
   let mcp = 0;
@@ -36,10 +45,22 @@ function censusOne(traces: Trace[]): PopulationCensus {
     for (const e of t.events) {
       total += 1;
       if (e.rawTool.startsWith("mcp__")) mcp += 1;
-      const s = byTool.get(e.tool) ?? { calls: 0, traces: new Set<string>(), errors: 0 };
+      const s =
+        byTool.get(e.tool) ??
+        { calls: 0, traces: new Set<string>(), errors: 0, errorMsgs: new Map<string, number>() };
       s.calls += 1;
       s.traces.add(t.id);
-      if (e.isError) s.errors += 1;
+      if (e.isError) {
+        s.errors += 1;
+        const raw =
+          typeof e.result === "string"
+            ? e.result
+            : e.result !== undefined
+              ? JSON.stringify(e.result)
+              : "";
+        const message = raw.split("\n")[0]!.slice(0, 90) || "(no error text)";
+        s.errorMsgs.set(message, (s.errorMsgs.get(message) ?? 0) + 1);
+      }
       byTool.set(e.tool, s);
       if (prev !== undefined) {
         const key = `${prev} → ${e.tool}`;
@@ -60,6 +81,10 @@ function censusOne(traces: Trace[]): PopulationCensus {
         calls: s.calls,
         traces: s.traces.size,
         errorRate: s.calls ? s.errors / s.calls : 0,
+        topErrors: [...s.errorMsgs.entries()]
+          .map(([message, count]) => ({ message, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 2),
       }))
       .sort((a, b) => b.calls - a.calls),
     bigrams: [...bigrams.entries()]
@@ -94,6 +119,9 @@ export function renderCensus(r: CensusReport): string {
       lines.push(
         `  ${String(t.calls).padStart(6)}  ${t.tool}  · in ${t.traces}/${p.traces} traces${err}`,
       );
+      for (const e of t.topErrors) {
+        lines.push(`          ↳ ${e.count}× ${e.message}`);
+      }
     }
     if (p.bigrams.length) {
       lines.push(`  dominant sequences:`);
