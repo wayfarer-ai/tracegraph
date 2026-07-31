@@ -2,7 +2,8 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadStreamJsonTrace, splitEpisodes } from "./stream-json.js";
+import { loadStreamJsonTrace } from "./stream-json.js";
+import { splitEpisodes } from "./episodes.js";
 
 function streamFile(lines: object[]): string {
   const dir = mkdtempSync(join(tmpdir(), "tracegraph-ep-"));
@@ -73,5 +74,42 @@ describe("episode splitting of interactive sessions", () => {
     const episodes = splitEpisodes(t);
     expect(episodes.length).toBe(1);
     expect(episodes[0]!.id).toBe(t.id);
+  });
+});
+
+describe("ATIF loader episode parity", () => {
+  it("records breaks at user-source steps", async () => {
+    const { loadAtifTrace } = await import("./atif.js");
+    const dir = mkdtempSync(join(tmpdir(), "tracegraph-atif-ep-"));
+    const path = join(dir, "traj.json");
+    const step = (id: number, source: string, toolName?: string) => ({
+      step_id: id,
+      source,
+      message: source === "user" ? "next task please" : "",
+      tool_calls: toolName
+        ? [{ tool_call_id: `c${id}`, function_name: toolName, arguments: {} }]
+        : [],
+      observation: toolName
+        ? { results: [{ source_call_id: `c${id}`, content: "{}" }] }
+        : undefined,
+    });
+    writeFileSync(
+      path,
+      JSON.stringify({
+        schema_version: "ATIF-v1.7",
+        steps: [
+          step(1, "user"),
+          step(2, "agent", "get_a"),
+          step(3, "user"),
+          step(4, "agent", "get_b"),
+        ],
+      }),
+    );
+    const episodes = splitEpisodes(loadAtifTrace(path));
+    expect(episodes.length).toBe(2);
+    expect(episodes.map((e) => e.events.map((x) => x.tool))).toEqual([
+      ["get_a"],
+      ["get_b"],
+    ]);
   });
 });

@@ -100,6 +100,14 @@ ordering, structured conditions. They do not judge whether your model's
 angry") are future work. For consequential actions — money, deletion,
 compliance — the behavioral layer is the one you need guarantees on.
 
+## Also included (experimental)
+
+`whatif` (mutate a spec, replay decisions over recorded traces),
+`probe` (read the guard's uncertainty, get told which inputs to test next),
+and `census --episodes` (behavior maps for interactive sessions —
+tool counts, error rates, dominant sequences, split into task episodes at
+user messages). Interfaces may shift; feedback welcome.
+
 ## Status
 
 v0.1 — launch cut. Built on a validated method: on our benchmark corpus,

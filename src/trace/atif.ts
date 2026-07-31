@@ -52,9 +52,19 @@ export function loadAtifTrace(
 ): Trace {
   const traj = JSON.parse(readFileSync(path, "utf8")) as AtifTrajectory;
   const events: ToolEvent[] = [];
+  const episodeBreaks: number[] = [];
   let runDate: Date | undefined;
 
   for (const step of traj.steps ?? []) {
+    // User-source steps with a real message are task boundaries (episode
+    // splitting parity with the stream-json loader).
+    if (
+      step.source === "user" &&
+      (step.tool_calls ?? []).length === 0 &&
+      events.length > 0
+    ) {
+      episodeBreaks.push(events.length);
+    }
     if (!runDate && step.timestamp) {
       const d = new Date(step.timestamp);
       if (!Number.isNaN(d.getTime())) runDate = d;
@@ -80,6 +90,6 @@ export function loadAtifTrace(
     id: basename(path).replace(/\.json$/, ""),
     events,
     runDate: runDate ?? new Date(),
-    meta,
+    meta: { ...meta, episodeBreaks },
   };
 }
