@@ -50,3 +50,4 @@ export { SpecGate, type GateDecision, type GateMode } from "./gate/core.js";
 export { GateProxy, type GateProxyOptions } from "./gate/proxy.js";
 export { clusterByVocabulary, describeClusters } from "./synth/cluster.js";
 export { FeatureAccumulator } from "./synth/features.js";
+export { census, renderCensus, type CensusReport, type PopulationCensus } from "./census/index.js";

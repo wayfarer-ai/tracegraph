@@ -309,6 +309,23 @@ program
     if (opts.json) writeFileSync(opts.json, JSON.stringify(report, null, 2));
   });
 
+program
+  .command("census")
+  .description("Behavior map for trace populations: tool counts, MCP share, dominant sequences")
+  .argument("<traces-dir>", "directory containing trace files")
+  .option("--json <file>", "write full census as JSON")
+  .action(async (dir: string, opts: { json?: string }) => {
+    const { census, renderCensus } = await import("./census/index.js");
+    const traces = loadTraces(dir);
+    if (traces.length === 0) {
+      process.stderr.write("no traces found\n");
+      process.exit(1);
+    }
+    const report = census(traces);
+    process.stdout.write(renderCensus(report));
+    if (opts.json) writeFileSync(opts.json, JSON.stringify(report, null, 2));
+  });
+
 program.parseAsync().catch((e: Error) => {
   process.stderr.write(`tracegraph: ${e.message}\n`);
   process.exit(1);

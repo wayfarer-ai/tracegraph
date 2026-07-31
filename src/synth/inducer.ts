@@ -117,9 +117,13 @@ export function predict(tree: GuardTree, f: Features): boolean {
 }
 
 function negate(s: Split): GuardClause {
-  return s.op === ">"
-    ? { feature: s.feature, op: "<=", value: s.value as number }
-    : { feature: s.feature, op: "!=", value: s.value };
+  if (s.op === ">") return { feature: s.feature, op: "<=", value: s.value as number };
+  // Boolean equality negates to the opposite value — "x == true" reads far
+  // better than "x != false" and evaluates identically over booleans.
+  if (typeof s.value === "boolean") {
+    return { feature: s.feature, op: "==", value: !s.value };
+  }
+  return { feature: s.feature, op: "!=", value: s.value };
 }
 
 /** DNF of every root-to-leaf path ending in a positive leaf. */
