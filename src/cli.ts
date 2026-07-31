@@ -5,7 +5,7 @@ import { Command } from "commander";
 import { readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { loadAtifTrace } from "./trace/atif.js";
-import { loadStreamJsonTrace } from "./trace/stream-json.js";
+import { loadStreamJsonTrace, splitEpisodes } from "./trace/stream-json.js";
 import { loadOtlpTraces, looksLikeOtlp } from "./trace/otlp.js";
 import type { Trace } from "./trace/types.js";
 import { synthesize } from "./synth/index.js";
@@ -23,8 +23,8 @@ program
   .description("Induce the graph your agent actually follows — then check, diff, and gate against it.")
   .version("0.0.1");
 
-function loadTraces(dir: string): Trace[] {
-  const traces: Trace[] = [];
+function loadTraces(dir: string, episodes = false): Trace[] {
+  let traces: Trace[] = [];
   const root = resolve(dir);
   for (const f of readdirSync(root)) {
     const p = join(root, f);
@@ -38,6 +38,9 @@ function loadTraces(dir: string): Trace[] {
     } catch (e) {
       process.stderr.write(`warning: skipping ${f}: ${(e as Error).message}\n`);
     }
+  }
+  if (episodes) {
+    traces = traces.flatMap((t) => splitEpisodes(t));
   }
   const empty = traces.filter((t) => t.events.length === 0).length;
   if (empty > 0) {
@@ -73,8 +76,9 @@ program
   .option("-o, --out <file>", "output spec path", "tracegraph.spec.yaml")
   .option("-n, --name <name>", "spec name", "agent-spec")
   .option("-a, --action <tool>", "the consequential action tool (auto-detected if omitted)")
-  .action((dir: string, opts: { out: string; name: string; action?: string }) => {
-    let traces = loadTraces(dir);
+  .option("-e, --episodes", "split interactive sessions into task episodes at user messages")
+  .action((dir: string, opts: { out: string; name: string; action?: string; episodes?: boolean }) => {
+    let traces = loadTraces(dir, opts.episodes);
     if (traces.length === 0) {
       process.stderr.write("no traces found (expected ATIF .json or stream .jsonl files)\n");
       process.exit(1);
@@ -313,10 +317,11 @@ program
   .command("census")
   .description("Behavior map for trace populations: tool counts, MCP share, dominant sequences")
   .argument("<traces-dir>", "directory containing trace files")
+  .option("-e, --episodes", "split interactive sessions into task episodes at user messages")
   .option("--json <file>", "write full census as JSON")
-  .action(async (dir: string, opts: { json?: string }) => {
+  .action(async (dir: string, opts: { episodes?: boolean; json?: string }) => {
     const { census, renderCensus } = await import("./census/index.js");
-    const traces = loadTraces(dir);
+    const traces = loadTraces(dir, opts.episodes);
     if (traces.length === 0) {
       process.stderr.write("no traces found\n");
       process.exit(1);

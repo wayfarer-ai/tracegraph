@@ -51,6 +51,7 @@ export function loadStreamJsonTrace(
   meta: Record<string, unknown> = {},
 ): Trace {
   const events: ToolEvent[] = [];
+  const episodeBreaks: number[] = [];
   const pending = new Map<string, ToolEvent>();
   let step = 0;
 
@@ -82,15 +83,25 @@ export function loadStreamJsonTrace(
         }
       }
     } else if (ev.type === "user") {
+      let sawToolResult = false;
+      let sawText = false;
       for (const block of content) {
         if (block.type === "tool_result" && block.tool_use_id) {
+          sawToolResult = true;
           const target = pending.get(block.tool_use_id);
           if (target) {
             target.result = parseContent(block.content);
             if (block.is_error) target.isError = true;
             pending.delete(block.tool_use_id);
           }
+        } else if (block.type === "text" && block.text?.trim()) {
+          sawText = true;
         }
+      }
+      // A real user message (text, not a tool result) marks a task
+      // boundary in interactive sessions — recorded for episode splitting.
+      if (sawText && !sawToolResult && events.length > 0) {
+        episodeBreaks.push(events.length);
       }
     }
   }
@@ -100,6 +111,27 @@ export function loadStreamJsonTrace(
     events,
     // stream-json has no timestamps; callers pass runDate via meta.runDate
     runDate: meta["runDate"] instanceof Date ? (meta["runDate"] as Date) : new Date(),
-    meta,
+    meta: { ...meta, episodeBreaks },
   };
+}
+
+/** Split a session trace into task-shaped episodes at user-message
+ * boundaries (recorded by the loader). Sessions where a spec makes no
+ * sense often contain dozens of episodes where it does. */
+export function splitEpisodes(trace: Trace): Trace[] {
+  const breaks = (trace.meta["episodeBreaks"] as number[] | undefined) ?? [];
+  if (breaks.length === 0) return [trace];
+  const bounds = [0, ...breaks, trace.events.length];
+  const out: Trace[] = [];
+  for (let i = 0; i + 1 < bounds.length; i++) {
+    const events = trace.events.slice(bounds[i], bounds[i + 1]);
+    if (events.length === 0) continue;
+    out.push({
+      ...trace,
+      id: `${trace.id}#e${i + 1}`,
+      events,
+      meta: { ...trace.meta, episodeOf: trace.id, episodeBreaks: [] },
+    });
+  }
+  return out;
 }
