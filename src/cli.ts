@@ -39,7 +39,13 @@ function loadTraces(dir: string): Trace[] {
       process.stderr.write(`warning: skipping ${f}: ${(e as Error).message}\n`);
     }
   }
-  return traces;
+  const empty = traces.filter((t) => t.events.length === 0).length;
+  if (empty > 0) {
+    process.stderr.write(
+      `note: skipped ${empty} trace(s) with no tool calls (plain conversations)\n`,
+    );
+  }
+  return traces.filter((t) => t.events.length > 0);
 }
 
 function renderSteps(steps: SpecStep[], indent = ""): string {
@@ -83,8 +89,33 @@ program
       traces = clusters[0]!;
     }
     const result = synthesize(traces, { name: opts.name, actionTool: opts.action });
-    writeSpec(opts.out, result.spec);
 
+    // Shape check: a spec is only meaningful over REPEATED runs of one
+    // task. Few, huge, weakly-separable traces are almost certainly
+    // multi-task interactive sessions — say so instead of shipping noise.
+    const meanEvents = traces.reduce((n, t) => n + t.events.length, 0) / traces.length;
+    const sessionShaped =
+      (traces.length < 5 && meanEvents > 200) || result.trainingAgreement < 0.7;
+    if (sessionShaped && !opts.action) {
+      const census = new Map<string, number>();
+      for (const t of traces) {
+        for (const e of t.events) census.set(e.tool, (census.get(e.tool) ?? 0) + 1);
+      }
+      const top = [...census.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
+      process.stdout.write(
+        `\nthese traces look like long multi-task sessions ` +
+          `(${traces.length} trace(s), ~${Math.round(meanEvents)} tool calls each, ` +
+          `guard agreement ${(result.trainingAgreement * 100).toFixed(0)}%).\n` +
+          `a spec needs repeated runs of a single task — capture per-task traces ` +
+          `(e.g. one \`claude -p ... --output-format stream-json\` file per run).\n\n` +
+          `tool census across these sessions:\n` +
+          top.map(([t, n]) => `  ${String(n).padStart(5)}  ${t}`).join("\n") +
+          `\n\nno spec written. Pass --action <tool> to force synthesis anyway.\n`,
+      );
+      process.exit(2);
+    }
+
+    writeSpec(opts.out, result.spec);
     process.stdout.write(
       `\n${result.spec.name} — induced from ${traces.length} traces\n` +
         `action: ${result.actionTool} · ${result.positives} took it, ${result.negatives} did not\n` +
@@ -278,4 +309,7 @@ program
     if (opts.json) writeFileSync(opts.json, JSON.stringify(report, null, 2));
   });
 
-program.parse();
+program.parseAsync().catch((e: Error) => {
+  process.stderr.write(`tracegraph: ${e.message}\n`);
+  process.exit(1);
+});

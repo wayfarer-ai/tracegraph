@@ -32,22 +32,42 @@ function gini(labels: boolean[]): number {
   return 2 * p * (1 - p);
 }
 
+/** Candidate-space bounds, added after dogfooding on 5,000-event
+ * interactive sessions: unbounded feature × value enumeration turns
+ * induction from milliseconds into minutes. Features seen in under a third
+ * of rows can't produce a stable guard anyway, and a categorical with more
+ * values than rows is an identifier in disguise. */
+const MIN_FEATURE_SUPPORT = 1 / 3;
+const MAX_CATEGORICAL_VALUES = 16;
+const MAX_NUMERIC_THRESHOLDS = 32;
+
 function bestSplit(rows: LabeledRow[]): Split | undefined {
-  const keys = new Set<string>();
-  for (const r of rows) for (const k of r.features.keys()) keys.add(k);
+  const keyCounts = new Map<string, number>();
+  for (const r of rows) {
+    for (const k of r.features.keys()) keyCounts.set(k, (keyCounts.get(k) ?? 0) + 1);
+  }
+  const minSupport = Math.max(2, Math.ceil(rows.length * MIN_FEATURE_SUPPORT));
+  const keys = [...keyCounts.entries()]
+    .filter(([, n]) => n >= minSupport)
+    .map(([k]) => k);
 
   const base = gini(rows.map((r) => r.label));
   let best: Split | undefined;
   let bestScore = base - 1e-9;
 
-  for (const key of [...keys].sort()) {
+  for (const key of keys.sort()) {
     const values = rows
       .map((r) => r.features.get(key))
       .filter((v): v is FeatureValue => v !== undefined);
-    const nums = [...new Set(values.filter((v): v is number => typeof v === "number"))].sort(
+    let nums = [...new Set(values.filter((v): v is number => typeof v === "number"))].sort(
       (a, b) => a - b,
     );
+    if (nums.length > MAX_NUMERIC_THRESHOLDS + 1) {
+      const step = (nums.length - 1) / MAX_NUMERIC_THRESHOLDS;
+      nums = Array.from({ length: MAX_NUMERIC_THRESHOLDS + 1 }, (_, i) => nums[Math.round(i * step)]!);
+    }
     const cats = [...new Set(values.filter((v) => typeof v === "string" || typeof v === "boolean"))];
+    if (cats.length > MAX_CATEGORICAL_VALUES) continue; // identifier-like
 
     const candidates: Split[] = [];
     for (let i = 0; i + 1 < nums.length; i++) {

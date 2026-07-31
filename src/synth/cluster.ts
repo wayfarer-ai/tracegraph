@@ -15,11 +15,21 @@ function vocabulary(trace: Trace): Set<string> {
   return new Set(source.map((e) => e.tool));
 }
 
-function jaccard(a: Set<string>, b: Set<string>): number {
+/** Overlap coefficient: |A∩B| / min(|A|,|B|).
+ *
+ * Chosen over Jaccard after dogfooding on real interactive coding
+ * sessions: each session activates a different MCP-server mix, so full
+ * vocabularies diverge wildly while a working core (the shared tools) stays
+ * common. Jaccard shatters those into singleton clusters; the overlap
+ * coefficient keeps populations together when one's vocabulary is roughly
+ * a subset of another's, yet still separates truly disjoint dialects
+ * (renamed tools share nothing, so overlap stays 0). */
+function overlap(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 && b.size === 0) return 1;
+  if (a.size === 0 || b.size === 0) return 0;
   let inter = 0;
   for (const x of a) if (b.has(x)) inter += 1;
-  return inter / (a.size + b.size - inter);
+  return inter / Math.min(a.size, b.size);
 }
 
 /** Cluster traces by tool-vocabulary overlap; clusters sorted largest first. */
@@ -36,7 +46,7 @@ export function clusterByVocabulary(traces: Trace[], threshold = 0.5): Trace[][]
 
   for (let i = 0; i < traces.length; i++) {
     for (let j = i + 1; j < traces.length; j++) {
-      if (jaccard(vocabs[i]!, vocabs[j]!) >= threshold) {
+      if (overlap(vocabs[i]!, vocabs[j]!) >= threshold) {
         parent[find(j)] = find(i);
       }
     }
@@ -56,8 +66,11 @@ export function clusterByVocabulary(traces: Trace[], threshold = 0.5): Trace[][]
 export function describeClusters(clusters: Trace[][]): string {
   return clusters
     .map((c, i) => {
-      const tools = [...vocabulary(c[0]!)].sort().slice(0, 5).join(", ");
-      return `  cluster ${i + 1}: ${c.length} traces (tools: ${tools}${vocabulary(c[0]!).size > 5 ? ", …" : ""})`;
+      const union = new Set<string>();
+      for (const t of c) for (const tool of vocabulary(t)) union.add(tool);
+      const tools = [...union].sort().slice(0, 6).join(", ");
+      const label = union.size === 0 ? "no tool calls" : `tools: ${tools}${union.size > 6 ? ", …" : ""}`;
+      return `  cluster ${i + 1}: ${c.length} traces (${label})`;
     })
     .join("\n");
 }
