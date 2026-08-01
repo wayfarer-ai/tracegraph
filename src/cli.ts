@@ -93,7 +93,11 @@ program
       );
       traces = clusters[0]!;
     }
-    const result = synthesize(traces, { name: opts.name, actionTool: opts.action });
+    const result = synthesize(traces, {
+      name: opts.name,
+      actionTool: opts.action,
+      episodes: opts.episodes,
+    });
 
     // Shape check: a spec is only meaningful over REPEATED runs of one
     // task. Few, huge, weakly-separable traces are almost certainly
@@ -136,15 +140,26 @@ program
   .argument("<traces-dir>", "directory containing trace files")
   .requiredOption("-s, --spec <file>", "spec to check against")
   .option("-r, --rules <file>", "invariants rules file")
+  .option("-e, --episodes", "split interactive sessions into task episodes at user messages")
   .option("--json <file>", "write full report as JSON")
   .action(
-    (dir: string, opts: { spec: string; rules?: string; json?: string }) => {
-      const traces = loadTraces(dir);
+    (dir: string, opts: { spec: string; rules?: string; json?: string; episodes?: boolean }) => {
+      const traces = loadTraces(dir, opts.episodes);
       if (traces.length === 0) {
         process.stderr.write("no traces found\n");
         process.exit(1);
       }
       const spec = loadSpec(opts.spec);
+      // Granularity must match how the spec was induced, or whole sessions
+      // get judged against per-task guards (and everything "deviates").
+      const specEpisodes = spec.induction?.episodes === true;
+      if (specEpisodes !== Boolean(opts.episodes)) {
+        process.stderr.write(
+          `warning: spec was induced ${specEpisodes ? "WITH" : "WITHOUT"} --episodes but you ` +
+            `passed ${opts.episodes ? "--episodes" : "no --episodes"} — ` +
+            `${specEpisodes ? "add" : "drop"} the flag so granularity matches\n`,
+        );
+      }
       const rules = opts.rules ? loadRules(opts.rules) : [];
       const report = checkTraces(traces, spec, rules);
 
@@ -171,16 +186,19 @@ program
   .argument("<old-spec>", "baseline spec")
   .argument("<new-spec>", "candidate spec")
   .option("-t, --traces <dir>", "sample traces for decision-agreement analysis")
+  .option("-e, --episodes", "split interactive sessions into task episodes at user messages")
   .option("--json <file>", "write full diff as JSON")
-  .action((oldPath: string, newPath: string, opts: { traces?: string; json?: string }) => {
+  .action(
+    (oldPath: string, newPath: string, opts: { traces?: string; json?: string; episodes?: boolean }) => {
     const a = loadSpec(oldPath);
     const b = loadSpec(newPath);
-    const samples = opts.traces ? loadTraces(opts.traces) : undefined;
+    const samples = opts.traces ? loadTraces(opts.traces, opts.episodes) : undefined;
     const d = diffSpecs(a, b, samples);
     process.stdout.write(renderDiff(d));
     if (opts.json) writeFileSync(opts.json, JSON.stringify(d, null, 2));
     process.exit(d.identical ? 0 : 1);
-  });
+  },
+  );
 
 program
   .command("gate")
@@ -253,6 +271,7 @@ program
   .description("(experimental) Mutate a spec and replay decisions over recorded traces")
   .argument("<spec>", "baseline spec")
   .requiredOption("-t, --traces <dir>", "traces to replay decisions over")
+  .option("-e, --episodes", "split interactive sessions into task episodes at user messages")
   .option("--set-threshold <feature=value>", "move a numeric guard threshold")
   .option("--force-gate", "remove the gate guard entirely")
   .option("--set-feature <feature=value>", "inject a mutated observation everywhere")
@@ -261,6 +280,7 @@ program
       specPath: string,
       opts: {
         traces: string;
+        episodes?: boolean;
         setThreshold?: string;
         forceGate?: boolean;
         setFeature?: string;
@@ -268,7 +288,7 @@ program
     ) => {
       const { whatIf, renderWhatIf } = await import("./whatif/index.js");
       const spec = loadSpec(specPath);
-      const traces = loadTraces(opts.traces);
+      const traces = loadTraces(opts.traces, opts.episodes);
 
       const parseKV = (s: string): { feature: string; value: string | number | boolean } => {
         const i = s.indexOf("=");
@@ -306,10 +326,11 @@ program
   .description("(experimental) Read the guard's uncertainty and propose the inputs to test next")
   .argument("<spec>", "spec to analyze")
   .requiredOption("-t, --traces <dir>", "the traces the spec was induced from")
+  .option("-e, --episodes", "split interactive sessions into task episodes at user messages")
   .option("--json <file>", "write full report as JSON")
-  .action(async (specPath: string, opts: { traces: string; json?: string }) => {
+  .action(async (specPath: string, opts: { traces: string; json?: string; episodes?: boolean }) => {
     const { probe, renderProbe } = await import("./probe/index.js");
-    const report = probe(loadSpec(specPath), loadTraces(opts.traces));
+    const report = probe(loadSpec(specPath), loadTraces(opts.traces, opts.episodes));
     process.stdout.write(renderProbe(report));
     if (opts.json) writeFileSync(opts.json, JSON.stringify(report, null, 2));
   });

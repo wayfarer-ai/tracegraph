@@ -18,6 +18,8 @@ export interface SynthesizeOptions {
    * the agent directly branches on). Restrict to early observation tools
    * (e.g. ["get_order"]) to recover the *deep* rule behind that field. */
   guardScope?: string[];
+  /** Records in the spec that traces were episode-split. */
+  episodes?: boolean;
   maxDepth?: number;
 }
 
@@ -116,6 +118,7 @@ export function synthesize(traces: Trace[], opts: SynthesizeOptions = {}): Synth
     guard,
     inputKeys: opts.inputKeys,
     agreement: agree / rows.length,
+    episodes: opts.episodes,
   });
 
   return {

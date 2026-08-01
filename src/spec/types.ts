@@ -59,6 +59,9 @@ export interface TraceGraphSpec {
     at: string;
     agreement?: number;
     tool?: string;
+    /** True when induced from episode-split traces — check/gate must use
+     * the same granularity or the comparison is apples-to-oranges. */
+    episodes?: boolean;
   };
 }
 

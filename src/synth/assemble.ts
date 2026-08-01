@@ -110,6 +110,7 @@ export interface AssembleOptions {
   /** Named task inputs per trace, e.g. trace.meta.order_id -> "orderId". */
   inputKeys?: Record<string, string>;
   agreement?: number;
+  episodes?: boolean;
 }
 
 /** Order tools by how often they precede the action across traces, and
@@ -202,6 +203,7 @@ export function assembleSpec(traces: Trace[], opts: AssembleOptions): TraceGraph
       traces: traces.length,
       at: new Date().toISOString(),
       agreement: opts.agreement,
+      episodes: opts.episodes,
       tool: `tracegraph@0.0.1`,
     },
   };
