@@ -9,10 +9,13 @@ flowchart TB
   subgraph sources
     SJ[claude stream-json]
     AT[ATIF trajectories]
+    OT[OTel GenAI spans]
   end
   SJ --> L[loaders → normalized Trace]
   AT --> L
+  OT --> L
   L --> SY[synthesize: features → inducer → assemble]
+  L --> CEN[census: behavior map, no spec needed]
   SY --> SPEC[spec.yaml — in git]
   SPEC --> CHK[check: judge recorded traces]
   SPEC --> DIF[diff: compare two specs]
@@ -23,12 +26,13 @@ flowchart TB
 
 | Path | Responsibility |
 |---|---|
-| `src/trace/` | loaders (`atif.ts`, `stream-json.ts`) → one normalized `Trace` model; agent-namespace canonicalization |
+| `src/trace/` | loaders (`atif.ts`, `stream-json.ts`, `otlp.ts`) → one normalized `Trace` model; agent-namespace canonicalization; `episodes.ts` splits interactive sessions into task-shaped traces |
 | `src/synth/` | `features.ts` (FeatureAccumulator — state visible at a point in time), `inducer.ts` (gini decision tree → DNF guards), `cluster.ts` (population detection for messy dirs), `assemble.ts` (mapping, data-flow lift, load-bearing analysis), `index.ts` (action auto-detect, orchestration) |
-| `src/spec/` | the document: types (CallStep/GateStep, GuardExpr DNF), YAML io + validation |
+| `src/spec/` | the document: types (CallStep/GateStep, GuardExpr DNF), YAML io + validation, `explain.ts` (why a guard failed, in terms of actual state) |
 | `src/check/` | action-time evaluation of traces against spec + invariant rules file |
+| `src/census/` | behavior maps for populations no spec can describe: per-tool counts, error rates + top messages, MCP share, dominant call sequences |
 | `src/diff/` | structural + clause-level + behavioral (sample decision agreement) comparison |
-| `src/gate/` | (week 2) MCP proxy reusing check's evaluator on a live stream |
+| `src/gate/` | MCP proxy reusing check's evaluator on a live stream (shadow/block, JSONL decision log) |
 
 ## Design rules the code enforces
 
@@ -47,6 +51,25 @@ flowchart TB
    non-load-bearing and excluded from behavioral diffs.
 6. **Heterogeneous directories are detected, not averaged.** Vocabulary
    clustering warns and splits rather than synthesizing nonsense.
+
+## Two shapes of trace data
+
+A spec describes **repeated runs of one task**: several traces, same tool
+vocabulary, a decision that sometimes goes one way and sometimes the other.
+That is what `synthesize` needs, and what agent runtimes produce.
+
+Interactive sessions are the other shape — one long trace covering many
+unrelated tasks. There is no single decision to gate, so `synthesize`
+refuses (exit 2) rather than emitting a meaningless guard, and points at
+the alternatives:
+
+- `census` — the behavior map: what tools, how often, failing how, in what
+  sequences. The right answer to "what does this agent actually do" when no
+  spec is possible.
+- `--episodes` — split a session at user-message boundaries into
+  task-shaped traces. Available on every trace-consuming verb; the spec
+  records which granularity produced it (`induction.episodes`) and `check`
+  warns when the two disagree.
 
 ## Data at rest
 

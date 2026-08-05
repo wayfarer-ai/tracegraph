@@ -108,5 +108,11 @@ on the induced gate.
 
 ## `induction` provenance
 
-Informational: trace count, timestamp, training agreement, tool version.
-Downstream tooling must not depend on it.
+Trace count, timestamp, training agreement, and tool version — all
+informational; downstream tooling must not depend on them.
+
+One field is load-bearing: **`episodes: true`** records that the spec was
+induced from episode-split traces (`--episodes`). Granularity has to match
+at check and gate time, or whole sessions get judged against per-task
+guards. `check` compares the flag against how you invoked it and warns on a
+mismatch.
