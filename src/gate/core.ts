@@ -13,6 +13,7 @@
 
 import type { GateStep, InvariantRule, TraceGraphSpec } from "../spec/types.js";
 import { guardToString } from "../spec/types.js";
+import { explainGuardFailure } from "../spec/explain.js";
 import { FeatureAccumulator } from "../synth/features.js";
 import { evalGuard } from "../synth/inducer.js";
 import type { ToolEvent } from "../trace/types.js";
@@ -62,8 +63,10 @@ export class SpecGate {
 
     for (const gate of this.gatedBy(tool)) {
       if (!evalGuard(gate.guard, this.acc.features)) {
+        const why = explainGuardFailure(gate.guard, this.acc.features);
         violations.push(
-          `gate guard does not hold: ${guardToString(gate.guard)}`,
+          `gate guard does not hold: ${guardToString(gate.guard)}` +
+            (why ? ` — ${why}` : ""),
         );
       }
     }

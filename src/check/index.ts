@@ -22,6 +22,7 @@ import type {
   TraceGraphSpec,
 } from "../spec/types.js";
 import { guardToString } from "../spec/types.js";
+import { explainGuardFailure } from "../spec/explain.js";
 import { FeatureAccumulator } from "../synth/features.js";
 import { evalGuard } from "../synth/inducer.js";
 
@@ -98,6 +99,7 @@ export function checkTrace(
       if (gatedActionTools(gate).has(e.tool)) {
         actionFired.add(e.tool);
         if (!evalGuard(gate.guard, acc.features)) {
+          const why = explainGuardFailure(gate.guard, acc.features);
           findings.push({
             level: "deviation",
             kind: "guard-violated",
@@ -105,7 +107,8 @@ export function checkTrace(
             eventIndex: i,
             message:
               `${e.tool} fired but the gate guard did not hold: ` +
-              guardToString(gate.guard),
+              guardToString(gate.guard) +
+              (why ? ` — ${why}` : ""),
           });
         }
       }
@@ -124,6 +127,7 @@ export function checkTrace(
         });
       }
       if (rule.requiresGuard && !evalGuard(rule.requiresGuard, acc.features)) {
+        const why = explainGuardFailure(rule.requiresGuard, acc.features);
         findings.push({
           level: "deviation",
           kind: "rule-guard-violated",
@@ -132,6 +136,7 @@ export function checkTrace(
           message:
             `${e.tool} fired while rule guard did not hold: ` +
             guardToString(rule.requiresGuard) +
+            (why ? ` — ${why}` : "") +
             (rule.description ? ` (${rule.description})` : ""),
         });
       }

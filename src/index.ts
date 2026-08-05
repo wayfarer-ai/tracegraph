@@ -52,3 +52,4 @@ export { clusterByVocabulary, describeClusters } from "./synth/cluster.js";
 export { FeatureAccumulator } from "./synth/features.js";
 export { census, renderCensus, type CensusReport, type PopulationCensus } from "./census/index.js";
 export { splitEpisodes } from "./trace/episodes.js";
+export { explainGuardFailure } from "./spec/explain.js";
