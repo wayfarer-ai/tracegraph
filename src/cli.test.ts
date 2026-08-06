@@ -184,6 +184,64 @@ describe.skipIf(!built)("CLI: dogfood-driven guardrails", () => {
     expect(r.stderr).toContain("distinct trace populations");
   });
 
+  it("--population selects a specific cluster instead of forcing a file shuffle", () => {
+    const dir = tmp();
+    for (const i of [1, 2, 3]) taskTrace(dir, `hi${i}`, { eligible: true, act: true });
+    for (const i of [1, 2, 3]) taskTrace(dir, `lo${i}`, { eligible: false, act: false });
+    // A second dialect in the same directory — a real task population:
+    // 4 runs, balanced decision, so it stands on its own as a spec.
+    for (const [n, act] of [["x1", true], ["x2", true], ["x3", false], ["x4", false]] as const) {
+      const lines: object[] = [
+        {
+          type: "assistant",
+          message: { content: [{ type: "tool_use", id: "1", name: "zzz_look", input: { id: n } }] },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "1",
+                content: JSON.stringify({ rank: act ? 80 : 20 }),
+              },
+            ],
+          },
+        },
+      ];
+      if (act) {
+        lines.push(
+          {
+            type: "assistant",
+            message: { content: [{ type: "tool_use", id: "2", name: "zzz_act", input: { id: n } }] },
+          },
+          {
+            type: "user",
+            message: {
+              content: [
+                { type: "tool_result", tool_use_id: "2", content: JSON.stringify({ ok: true }) },
+              ],
+            },
+          },
+        );
+      }
+      writeFileSync(join(dir, `${n}.jsonl`), lines.map((l) => JSON.stringify(l)).join("\n"));
+    }
+
+    const first = run("synthesize", dir, "-o", join(dir, "p1.yaml"));
+    expect(first.stderr).toContain("synthesizing population 1");
+    expect(first.stderr).toContain("--population N for the others");
+    expect(first.stdout).toContain("action: approve");
+
+    const second = run("synthesize", dir, "-o", join(dir, "p2.yaml"), "--population", "2");
+    expect(second.stderr).toContain("synthesizing population 2");
+    expect(second.stdout).toContain("action: zzz_act");
+
+    const bad = run("synthesize", dir, "-o", join(dir, "p9.yaml"), "--population", "9");
+    expect(bad.code).toBe(1);
+    expect(bad.stderr).toContain("must be between 1 and 2");
+  });
+
   it("reports a clean one-line error for a malformed spec", () => {
     const dir = tmp();
     taskTrace(dir, "t", { eligible: true, act: true });

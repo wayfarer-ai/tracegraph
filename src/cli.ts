@@ -78,7 +78,14 @@ program
   .option("-n, --name <name>", "spec name", "agent-spec")
   .option("-a, --action <tool>", "the consequential action tool (auto-detected if omitted)")
   .option("-e, --episodes", "split interactive sessions into task episodes at user messages")
-  .action((dir: string, opts: { out: string; name: string; action?: string; episodes?: boolean }) => {
+  .option("-p, --population <n>", "synthesize from population N when a directory holds several (1-based)")
+  .action((dir: string, opts: {
+    out: string;
+    name: string;
+    action?: string;
+    episodes?: boolean;
+    population?: string;
+  }) => {
     let traces = loadTraces(dir, opts.episodes);
     if (traces.length === 0) {
       process.stderr.write("no traces found (expected ATIF .json or stream .jsonl files)\n");
@@ -86,12 +93,26 @@ program
     }
     const clusters = clusterByVocabulary(traces);
     if (clusters.length > 1) {
+      const pick = opts.population ? Number(opts.population) : 1;
+      if (!Number.isInteger(pick) || pick < 1 || pick > clusters.length) {
+        process.stderr.write(
+          `--population must be between 1 and ${clusters.length}\n` + describeClusters(clusters) + "\n",
+        );
+        process.exit(1);
+      }
+      const chosen = clusters[pick - 1]!;
       process.stderr.write(
-        `warning: found ${clusters.length} distinct trace populations (different tool vocabularies):\n` +
+        `note: ${clusters.length} distinct trace populations here (different tool vocabularies):\n` +
           describeClusters(clusters) +
-          `\nsynthesizing from the largest cluster only — split the directory to synthesize the others\n\n`,
+          `\nsynthesizing population ${pick} (${chosen.length} traces)` +
+          (opts.population
+            ? "\n\n"
+            : ` — pass --population N for the others\n\n`),
       );
-      traces = clusters[0]!;
+      traces = chosen;
+    } else if (opts.population && opts.population !== "1") {
+      process.stderr.write(`--population ${opts.population}: only 1 population found\n`);
+      process.exit(1);
     }
     const result = synthesize(traces, {
       name: opts.name,
